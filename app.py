@@ -1,18 +1,34 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session, send_from_directory
 from database import SessionLocal, init_db, new_session
-from models import User
-import models
+from config import FLASK_SECRET_KEY, BASE_DIR, FRONTEND_DIR
+from datetime import timedelta
+import os
 
-from blueprints import users_bp
-
+# from blueprints import users_bp
 
 app = Flask(__name__)
 
-app.register_blueprint(users_bp)
+app.secret_key = FLASK_SECRET_KEY
+
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# app.register_blueprint(users_bp)
 
 @app.route("/")
-def root_not_found():
-    return jsonify({
-        "error": "Wrong path",
-        "message": "Вы ошиблись путём. Используйте эндпоинты API, например /users"
-    }), 404
+def serve_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+@app.route("/api/ping")
+def ping_handle():
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/<path:path>")
+def serve_static_or_spa(path):
+    target_path = os.path.join(FRONTEND_DIR, path)
+    
+    if os.path.exists(target_path):
+        return send_from_directory(FRONTEND_DIR, path)
+    
+    return jsonify({"error": "Resource not found"}), 404

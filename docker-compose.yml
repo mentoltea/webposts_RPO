@@ -43,6 +43,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/app
+      - /app/frontend/dist
     container_name: python_web_app
     restart: unless-stopped
     ports:

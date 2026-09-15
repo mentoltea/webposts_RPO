@@ -12,10 +12,13 @@ DB_NAME = os.getenv("DB_NAME")
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 FLASK_PORT = os.getenv("FLASK_PORT")
-
+FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY")
 
 S3_ENDPOINT_INTERNAL = "http://minio:9000"
 S3_ENDPOINT_EXTERNAL = "http://localhost:9000"
 S3_ACCESS_KEY = os.getenv("MINIO_ROOT_USER")
 S3_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD")
 BUCKET_NAME = "photos"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend", "dist")
