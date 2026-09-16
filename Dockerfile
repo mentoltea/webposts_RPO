@@ -11,6 +11,7 @@ COPY frontend/package*.json ./
 # npm ci использует lock-файл для быстрой и воспроизводимой установки
 RUN npm ci
 
+ARG CACHEBURST=1
 COPY frontend/ ./
 RUN npm run build
 

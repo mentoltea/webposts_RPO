@@ -1,5 +1,6 @@
+from contextlib import contextmanager
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 from config import DB_URL
 engine = create_engine(
     DB_URL,
@@ -11,7 +12,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 class Base(DeclarativeBase):
     pass
 
-def new_session():
+@contextmanager
+def new_session() -> Session:
     db = SessionLocal()
     try:
         yield db

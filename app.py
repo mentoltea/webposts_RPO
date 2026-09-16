@@ -4,7 +4,7 @@ from config import FLASK_SECRET_KEY, BASE_DIR, FRONTEND_DIR
 from datetime import timedelta
 import os
 
-# from blueprints import users_bp
+from blueprints import user_bp, auth_bp, post_bp
 
 app = Flask(__name__)
 
@@ -14,7 +14,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
-# app.register_blueprint(users_bp)
+app.register_blueprint(auth_bp)
 
 @app.route("/")
 def serve_index():

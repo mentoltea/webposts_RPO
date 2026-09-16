@@ -1,18 +1,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-  },
-  server: {
-    // Для удобства локальной разработки (npm run dev) проксируем запросы API на Flask
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        auth: resolve(__dirname, 'auth.html'),
       },
     },
   },

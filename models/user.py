@@ -17,6 +17,7 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     
     is_admin = Column(Boolean)
+    password_hash = Column(String(128), nullable=False)
     
     photos = relationship("Photo", back_populates="user")
     posts = relationship("Post", back_populates="author")
