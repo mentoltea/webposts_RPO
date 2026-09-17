@@ -25,7 +25,30 @@ class S3Service:
             aws_secret_access_key=S3_SECRET_KEY,
             config=config,
         )
+        self.endpoint_internal = S3_ENDPOINT_INTERNAL
+        self.endpoint_external = S3_ENDPOINT_EXTERNAL
         self.bucket_name = BUCKET_NAME
+    
+    def get_presigned_url(self, filename: str, expires_in: int = 60) -> str:
+        """
+        Генерирует presigned URL и подменяет внутренний хост (minio:9000)
+        на внешний адрес, доступный браузеру (localhost:9000).
+        """
+        # Генерируем стандартный URL через boto3
+        url = self.client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': self.bucket_name,
+                'Key': filename
+            },
+            ExpiresIn=expires_in
+        )
+
+        # Заменяем внутренний адрес на внешний
+        if self.endpoint_internal and self.endpoint_external:
+            url = url.replace(self.endpoint_internal, self.endpoint_external)
+
+        return url
 
     def init_public_bucket(self):
         try:

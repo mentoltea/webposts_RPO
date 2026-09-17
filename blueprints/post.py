@@ -223,3 +223,20 @@ def edit_post_by_id(id: int):
             "message": "Post updated successfully",
             "post": post.to_dict()
         }), 200
+
+
+@post_bp.route('/<int:id>/photos', methods=['GET'])
+def get_post_photos(id: int):
+    with new_session() as db:
+        post = db.get(Post, id)
+        
+        if not post:
+            return jsonify({"error": "Post not found"}), 404
+
+        photo_ids = [photo.id for photo in post.photos]
+
+        return jsonify({
+            "post_id": post.id,
+            "photo_ids": photo_ids,
+            "count": len(photo_ids)
+        }), 200
