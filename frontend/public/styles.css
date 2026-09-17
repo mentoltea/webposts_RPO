@@ -445,3 +445,97 @@ pre {
 .modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.4);
 }
+
+/* Макет с боковой панелью слева */
+.main-wrapper {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 24px;
+  padding: 0 16px;
+}
+
+.sidebar-left {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.btn-create-post {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  position: sticky;
+  top: 20px;
+}
+
+.btn-create-post:hover {
+  background-color: #0052a3;
+}
+
+/* Модальное окно создания новости */
+.create-post-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 600px;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.create-post-form .form-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.file-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.file-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f4f4f5;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.btn-remove-file {
+  background: none;
+  border: none;
+  color: #ff4d4f;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.status-info {
+  margin-bottom: 12px;
+  color: #0066cc;
+  font-size: 14px;
+}

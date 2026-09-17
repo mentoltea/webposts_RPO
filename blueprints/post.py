@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Blueprint, jsonify, request, session, send_from_directory, redirect
+from flask import Blueprint, jsonify, request, session, send_from_directory
 from database import SessionLocal, init_db, new_session
 from config import FLASK_SECRET_KEY, BASE_DIR, FRONTEND_DIR
 from models import User, Post, Photo
@@ -159,22 +159,23 @@ def make_new_post():
     """Создание поста с заголовком и текстом. Только для авторизованных пользователей"""
     uid = session.get("user_id")
     if not uid:
-        return redirect("/auth")
+        return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
     title = data.get("title")
-    text = data.get("text")
+    # Принимаем 'content' или 'text' для совместимости
+    content = data.get("content") or data.get("text")
 
-    if not title or not text:
-        return jsonify({"error": "Both title and text are required"}), 400
+    if not title or not content:
+        return jsonify({"error": "Both title and content are required"}), 400
 
     with new_session() as db:
         new_post = Post(
             title=title,
-            text=text,
+            content=content,
             author_id=uid
         )
         db.add(new_post)
@@ -199,10 +200,10 @@ def edit_post_by_id(id: int):
         return jsonify({"error": "No data provided"}), 400
 
     new_title = data.get("title")
-    new_text = data.get("text")
+    new_content = data.get("content") or data.get("text")
 
-    if not new_title and not new_text:
-        return jsonify({"error": "At least one field (title or text) must be provided for update"}), 400
+    if not new_title and not new_content:
+        return jsonify({"error": "At least one field (title or content) must be provided for update"}), 400
 
     with new_session() as db:
         post = db.get(Post, id)
@@ -214,8 +215,8 @@ def edit_post_by_id(id: int):
 
         if new_title:
             post.title = new_title
-        if new_text:
-            post.text = new_text
+        if new_content:
+            post.content = new_content
 
         db.commit()
 
@@ -239,4 +240,39 @@ def get_post_photos(id: int):
             "post_id": post.id,
             "photo_ids": photo_ids,
             "count": len(photo_ids)
+        }), 200
+
+
+@post_bp.route('/<int:id>/photos', methods=['POST'])
+def attach_photos_list_to_post(id: int):
+    """Прикрепление массива photo_ids к посту"""
+    uid = session.get("user_id")
+    if not uid:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    if not data or 'photo_ids' not in data:
+        return jsonify({"error": "photo_ids array is required"}), 400
+
+    photo_ids = data.get('photo_ids', [])
+
+    with new_session() as db:
+        post = db.get(Post, id)
+        if not post:
+            return jsonify({"error": "Post not found"}), 404
+
+        if post.author_id != uid:
+            return jsonify({"error": "Forbidden: Only author can attach photos"}), 403
+
+        photos = db.query(Photo).filter(Photo.id.in_(photo_ids)).all()
+        
+        for photo in photos:
+            if photo not in post.photos:
+                post.photos.append(photo)
+
+        db.commit()
+
+        return jsonify({
+            "message": "Photos attached successfully",
+            "attached_count": len(photos)
         }), 200
