@@ -5,7 +5,7 @@ from datetime import timedelta
 from models import User
 import os
 
-user_bp = Blueprint('user_bp', __name__, url_prefix='user')
+user_bp = Blueprint('user_bp', __name__, url_prefix='/user')
 
 @user_bp.route('/<string:username>', methods=['GET'])
 def get_user_by_username(username: str):

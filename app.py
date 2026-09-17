@@ -15,6 +15,8 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(user_bp)
+app.register_blueprint(post_bp)
 
 @app.route("/")
 def serve_index():

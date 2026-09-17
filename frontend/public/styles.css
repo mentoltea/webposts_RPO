@@ -269,3 +269,87 @@ pre {
   overflow-x: auto;
   font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
+/* ==========================================================================
+   Лента постов (Узкая полоса, адаптивный интерфейс)
+   ========================================================================== */
+.feed-container {
+  max-width: 540px; /* Фиксированная узкая ширина полосы (как мобильный экран) */
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Элемент пагинации */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+/* Карточка отдельного поста */
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  word-wrap: break-word;
+}
+
+/* Крупный заголовок */
+.post-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a252f;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+/* Средний основной текст */
+.post-text {
+  font-size: 1.05rem;
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-line; /* Сохраняет абзацы */
+}
+
+/* Картинка поста (будущий функционал) */
+.post-image-container {
+  margin-top: 1rem;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.post-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.no-posts {
+  text-align: center;
+  padding: 3rem;
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  color: var(--text-muted);
+}
