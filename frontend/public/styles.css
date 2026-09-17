@@ -539,3 +539,112 @@ pre {
   color: #0066cc;
   font-size: 14px;
 }
+
+/* Главный контейнер */
+.main-wrapper {
+  display: flex;
+  justify-content: center; /* Центрирует содержимое */
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Левая панель с кнопкой не "расталкивает" контент */
+.sidebar-left {
+  position: absolute;
+  left: 20px;
+  top: 0;
+  width: auto;
+}
+
+/* Лента постов строго по центру */
+.feed-container {
+  width: 100%;
+  max-width: 680px; /* Фиксированная ширина ленты */
+  margin: 0 auto;
+}
+
+/* Контейнер карточки поста */
+.post-card {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* Предотвращает выпадение элемента за рамки */
+}
+
+/* Сетка фотографий в посте */
+.post-images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center; /* Центрирует изображения по горизонтали */
+  align-items: center;
+  margin-top: 15px;
+  width: 100%;
+}
+
+/* Превью фотографий внутри поста */
+.post-image-thumb {
+  max-width: 100%;       /* Фотография не превысит ширину поста */
+  height: auto;          /* Сохраняет оригинальные пропорции */
+  max-height: 450px;     /* Опциональное ограничение по высоте */
+  object-fit: contain;   /* Фото полностью помещается без обрезки */
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;        /* Центрирует одиночные фото */
+  cursor: pointer;
+}
+
+/* Основная сетка: 3 колонки (Левая боковая, Лента, Правая пустышка для баланса) */
+.main-wrapper {
+  display: grid;
+  grid-template-columns: 220px minmax(auto, 680px) 220px; /* Боковые панели по 220px */
+  justify-content: center;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  align-items: start;
+}
+
+/* Левая боковая панель с кнопкой */
+.sidebar-left {
+  position: sticky;
+  top: 20px; /* Кнопка фиксируется при скролле (по желанию) */
+  width: 100%;
+}
+
+/* Кнопка создания новости на всю ширину левой колонки */
+.btn-create-post {
+  width: 100%;
+  white-space: nowrap;
+}
+
+/* Лента новостей по центру */
+.feed-container {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Адаптивность для мобильных устройств и узких экранов */
+@media (max-width: 992px) {
+  .main-wrapper {
+    grid-template-columns: 1fr; /* Перевод в одну колонку на маленьких экранах */
+    justify-items: center;
+  }
+
+  .sidebar-left {
+    position: static;
+    width: 100%;
+    max-width: 680px;
+    margin-bottom: 15px;
+  }
+}
+
+/* Левая боковая панель с кнопкой */
+.sidebar-left {
+  position: sticky;
+  top: 30px;         /* Отступ сверху при скролле (если хедер липкий, увеличьте, например, до 80px) */
+  margin-top: 20px;  /* Отступ от хедера по умолчанию */
+  width: 100%;
+}

@@ -465,7 +465,7 @@ export default function App() {
                       </div>
 
                       <h2 className="post-title">{post.title}</h2>
-                      <p className="post-text">{post.content || post.text}</p>
+                      <p className="post-text">{post.content}</p>
                       
                       <PostPhotos 
                         postId={post.id} 
@@ -480,6 +480,8 @@ export default function App() {
 
           <PaginationControls />
         </main>
+
+        <aside className="sidebar-right" />
       </div>
 
       {activePhotoUrl && (
