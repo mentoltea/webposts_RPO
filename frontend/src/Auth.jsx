@@ -76,34 +76,11 @@ export function AuthPage() {
     }
   };
 
-  // Обработка Выхода (Logout)
-async function handleLogout() {
-  try {
-    const response = await fetch('/auth/api/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Передаём куку session для её очистки на сервере
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      // После успешного выхода отправляем пользователя на страницу входа
-      window.location.href = '/auth';
-    } else {
-      console.error('Ошибка при выходе из системы');
-    }
-  } catch (error) {
-    console.error('Сетевая ошибка при выходе:', error);
-  }
-}
-
   if (loading) return <div className="loader">Загрузка...</div>;
 
   return (
     <div className="layout">
-      <Header user={currentUser} onLogout={handleLogout} />
+      <Header user={currentUser} setUser={setCurrentUser} />
 
       <main className="container main-content">
         {errorMessage && <div className="alert-error">{errorMessage}</div>}
