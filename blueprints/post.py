@@ -66,7 +66,7 @@ def get_post_from_user(id: int):
         return jsonify([post.to_dict() for post in posts]), 200
 
 
-@post_bp.route("/delete/<int:id>", methods=['DELETE', 'POST'])
+@post_bp.route("/delete/<int:post_id>", methods=['DELETE', 'POST'])
 def delete_post(post_id):
     current_user_id = session.get('user_id')
     is_admin = session.get('is_admin', False)
