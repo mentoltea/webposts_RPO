@@ -1,6 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './Header';
 
+// Глобальный кэш для хранения загруженных авторов { user_id: username }
+const userCache = {};
+
+function AuthorName({ userId }) {
+  const [username, setUsername] = useState(() => userCache[userId] || null);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Если пользователь уже в кэше — не делаем повторный запрос
+    if (userCache[userId]) {
+      setUsername(userCache[userId]);
+      return;
+    }
+
+    // Запрос по правильному роуту вашего user_bp: /user/id/<id>
+    fetch(`/user/id/${userId}`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.username) {
+          userCache[userId] = data.username;
+          setUsername(data.username);
+        } else {
+          setUsername(`Пользователь #${userId}`);
+        }
+      })
+      .catch(() => setUsername(`Пользователь #${userId}`));
+  }, [userId]);
+
+  return <span>👤 {username || `Загрузка...`}</span>;
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -13,15 +45,15 @@ export default function App() {
   useEffect(() => {
     fetch('/auth/api/me', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((userData) => {
-        if (userData && userData.authenticated) {
-          setCurrentUser(userData.user);
+      .then((data) => {
+        if (data && data.authenticated) {
+          setCurrentUser(data.user);
         }
       })
       .catch(() => setCurrentUser(null));
   }, []);
 
-  // 2. Запрос количества страниц и загрузка 1-й страницы
+  // 2. Получение общего числа страниц и первая загрузка
   useEffect(() => {
     fetchTotalPagesAndLoadFirst();
   }, []);
@@ -30,16 +62,13 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      // Подключение к Flask-эндпоинту: /post/pages
       const res = await fetch('/post/pages', { credentials: 'include' });
       if (!res.ok) throw new Error('Не удалось получить количество страниц');
       const data = await res.json();
       
-      // Бэкенд возвращает { "pages_count": N, "total_posts": M }
       const total = data.pages_count || 1;
       setTotalPages(total);
 
-      // Автоматически загружаем 1-ю страницу
       await loadPostsPage(1);
     } catch (err) {
       console.error(err);
@@ -53,11 +82,9 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      // Подключение к Flask-эндпоинту: /post/pages/<page>
       const res = await fetch(`/post/pages/${page}`, { credentials: 'include' });
       if (!res.ok) throw new Error(`Ошибка загрузки страницы ${page}`);
       
-      // Бэкенд возвращает массив постов: [post.to_dict(), ...]
       const data = await res.json();
       setPosts(data);
       setCurrentPage(page);
@@ -75,7 +102,6 @@ export default function App() {
     }
   };
 
-  // Компонент кнопок пагинации (сверху и снизу)
   const PaginationControls = () => (
     <div className="pagination-container">
       <button 
@@ -105,44 +131,52 @@ export default function App() {
       <Header user={currentUser} setUser={setCurrentUser} />
 
       <main className="feed-container">
-        {/* Пагинация над постами */}
         <PaginationControls />
 
-        {/* Состояние загрузки / ошибки */}
         {loading && <div className="loader">Загрузка постов...</div>}
         {error && <div className="alert-error">{error}</div>}
 
-        {/* Лента постов */}
         {!loading && !error && (
           <div className="posts-list">
             {posts.length === 0 ? (
               <div className="no-posts">Постов пока нет.</div>
             ) : (
-              posts.map((post) => (
-                <article key={post.id} className="post-card">
-                  <h2 className="post-title">{post.title}</h2>
-                  <p className="post-text">{post.content}</p>
-                  
-                  {/* Задел под массив фотографий поста в будущем */}
-                  {post.photos && post.photos.length > 0 && (
-                    <div className="post-images-grid">
-                      {post.photos.map((photo) => (
-                        <img 
-                          key={photo.id} 
-                          src={photo.url || photo.path} 
-                          alt="Прикреплённое фото" 
-                          className="post-image" 
-                        />
-                      ))}
+              posts.map((post) => {
+                const authorId = post.author_id || post.user_id || post.author;
+
+                return (
+                  <article key={post.id} className="post-card">
+                    {/* Юзернейм автора над заголовком */}
+                    <div className="post-author">
+                      {post.username || post.author_name ? (
+                        <span>by {post.username || post.author_name}</span>
+                      ) : (
+                        <AuthorName userId={authorId} />
+                      )}
                     </div>
-                  )}
-                </article>
-              ))
+
+                    <h2 className="post-title">{post.title}</h2>
+                    <p className="post-text">{post.text}</p>
+                    
+                    {post.photos && post.photos.length > 0 && (
+                      <div className="post-images-grid">
+                        {post.photos.map((photo) => (
+                          <img 
+                            key={photo.id} 
+                            src={photo.url || photo.path} 
+                            alt="Прикреплённое фото" 
+                            className="post-image" 
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                );
+              })
             )}
           </div>
         )}
 
-        {/* Пагинация под постами */}
         <PaginationControls />
       </main>
     </div>

@@ -353,3 +353,23 @@ pre {
   border-radius: var(--border-radius);
   color: var(--text-muted);
 }
+
+/* Имя автора над заголовком */
+.post-author {
+  font-size: 0.85rem;
+  color: #8c98a4; /* Мелкий серый цвет */
+  margin-bottom: 0.3rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Корректировка отступа заголовка под автором */
+.post-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a252f;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
