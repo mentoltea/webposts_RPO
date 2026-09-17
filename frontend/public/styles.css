@@ -648,3 +648,109 @@ pre {
   margin-top: 20px;  /* Отступ от хедера по умолчанию */
   width: 100%;
 }
+
+/* Верхняя часть карточки поста с кнопками действий */
+.post-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.post-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s;
+}
+
+.btn-icon:hover {
+  background-color: #f0f0f0;
+}
+
+.btn-delete:hover {
+  background-color: #ffe6e6;
+  border-color: #ff4d4d;
+  color: #d32f2f;
+}
+
+/* Сетка превью фото в модальном окне */
+.photos-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.photo-preview-card {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #ccc;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Заполняет карточку, не позволяя кликать/приближать */
+  pointer-events: none; /* Запрещает клики по картинке в окне создания/редактирования */
+}
+
+/* Пометка фото на удаление */
+.photo-preview-card.marked-remove {
+  opacity: 0.4;
+  filter: grayscale(100%);
+}
+
+.btn-delete-photo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.btn-restore-photo {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.badge-new {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: #1976d2;
+  color: #fff;
+  font-size: 9px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}

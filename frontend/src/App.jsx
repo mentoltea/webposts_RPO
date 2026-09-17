@@ -1,34 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Header } from './Header';
 
-const userCache = {};
-
+// Компонент отображения имени автора
 function AuthorName({ userId }) {
-  const [username, setUsername] = useState(() => userCache[userId] || null);
+  const [name, setName] = useState(`Пользователь #${userId}`);
 
   useEffect(() => {
     if (!userId) return;
-    if (userCache[userId]) {
-      setUsername(userCache[userId]);
-      return;
-    }
-
-    fetch(`/user/id/${userId}`, { credentials: 'include' })
+    fetch(`/auth/api/user/${userId}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && data.username) {
-          userCache[userId] = data.username;
-          setUsername(data.username);
-        } else {
-          setUsername(`Пользователь #${userId}`);
-        }
+        if (data && data.username) setName(data.username);
       })
-      .catch(() => setUsername(`Пользователь #${userId}`));
+      .catch(() => {});
   }, [userId]);
 
-  return <span>by {username || 'Загрузка...'}</span>;
+  return <span>by {name}</span>;
 }
 
+// Компонент загрузки и отображения фотографий поста
 function PostPhotos({ postId, onImageClick }) {
   const [photoIds, setPhotoIds] = useState([]);
 
@@ -48,13 +37,13 @@ function PostPhotos({ postId, onImageClick }) {
 
   return (
     <div className="post-images-grid">
-      {photoIds.map((photoId) => {
-        const photoUrl = `/photo/id/${photoId}`;
+      {photoIds.map((id) => {
+        const photoUrl = `/photo/id/${id}`;
         return (
           <img
-            key={photoId}
+            key={id}
             src={photoUrl}
-            alt="Прикрепленное фото"
+            alt={`Фото к посту ${postId}`}
             className="post-image-thumb"
             onClick={() => onImageClick(photoUrl)}
           />
@@ -64,107 +53,101 @@ function PostPhotos({ postId, onImageClick }) {
   );
 }
 
+// Модальное окно просмотра полноразмерной фотографии
 function ImageModal({ src, onClose }) {
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const zoomFactor = 0.15;
-    let newScale = e.deltaY < 0 ? scale + zoomFactor : scale - zoomFactor;
-    newScale = Math.min(Math.max(1, newScale), 5);
-    if (newScale === 1) {
-      setPosition({ x: 0, y: 0 });
-    }
-    setScale(newScale);
-  };
-
-  const handleMouseDown = (e) => {
-    if (scale <= 1) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging || scale <= 1) return;
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
-        className="modal-content" 
-        onClick={(e) => e.stopPropagation()} 
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
+      <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close-btn" onClick={onClose}>✕</button>
-        <img
-          src={src}
-          alt="Увеличенное фото"
-          className="modal-image"
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-          }}
-          draggable={false}
-        />
+        <img src={src} alt="Увеличенное фото" className="full-size-image" />
       </div>
     </div>
   );
 }
 
-function CreatePostModal({ onClose }) {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState([]);
+// Универсальное модальное окно для создания И редактирования поста
+function PostFormModal({ postToEdit, onClose }) {
+  const isEditMode = Boolean(postToEdit);
+
+  const [title, setTitle] = useState(postToEdit ? postToEdit.title : '');
+  const [content, setContent] = useState(postToEdit ? postToEdit.content : '');
+
+  // Существующие фотографии (только при редактировании)
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const [photosToRemove, setPhotosToRemove] = useState([]); // Массив ID для открепления
+
+  // Новые выбранные фотографии
+  const [newFiles, setNewFiles] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]); // Blob URLs для отображения превью
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState(null);
 
+  // Загрузка имеющихся фото поста при редактировании
+  useEffect(() => {
+    if (isEditMode && postToEdit.id) {
+      fetch(`/post/${postToEdit.id}/photos`, { credentials: 'include' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.photo_ids) {
+            setExistingPhotos(data.photo_ids.map((id) => ({ id, url: `/photo/id/${id}` })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isEditMode, postToEdit]);
+
+  // Очистка созданных Blob URL из памяти при размонтировании
+  useEffect(() => {
+    return () => {
+      newPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [newPreviews]);
+
   const handleRequestClose = () => {
     if (isSubmitting) return;
-
-    if (title.trim() || content.trim() || selectedFiles.length > 0) {
-      const confirmClose = window.confirm(
-        'Вы уверены, что хотите закрыть окно? Все несохранённые данные будут потеряны.'
-      );
-      if (!confirmClose) return;
-    }
-    onClose();
+    const confirmClose = window.confirm(
+      'Вы уверены, что хотите закрыть окно? Все несохранённые изменения будут потеряны.'
+    );
+    if (confirmClose) onClose();
   };
 
+  // Выбор новых файлов
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length + selectedFiles.length > 5) {
-      alert('Можно прикрепить не более 5 фотографий');
+    const activeExistingCount = existingPhotos.length - photosToRemove.length;
+    const totalCount = activeExistingCount + newFiles.length + files.length;
+
+    if (totalCount > 5) {
+      alert('Суммарно у поста может быть не более 5 фотографий');
       return;
     }
-    setSelectedFiles((prev) => [...prev, ...files].slice(0, 5));
+
+    const createdPreviews = files.map((file) => URL.createObjectURL(file));
+
+    setNewFiles((prev) => [...prev, ...files]);
+    setNewPreviews((prev) => [...prev, ...createdPreviews]);
   };
 
-  const handleRemoveFile = (index) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  // Пометка существующего фото на удаление
+  const handleRemoveExistingPhoto = (photoId) => {
+    setPhotosToRemove((prev) => [...prev, photoId]);
   };
 
+  // Отмена пометки на удаление
+  const handleRestoreExistingPhoto = (photoId) => {
+    setPhotosToRemove((prev) => prev.filter((id) => id !== photoId));
+  };
+
+  // Удаление выбранного еще не загруженного фото
+  const handleRemoveNewFile = (index) => {
+    URL.revokeObjectURL(newPreviews[index]);
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Сохранение изменений / Публикация
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
@@ -176,31 +159,54 @@ function CreatePostModal({ onClose }) {
     setError(null);
 
     try {
-      // Шаг 1: Создание новости
-      setStatusText('Публикация записи...');
-      const postRes = await fetch('/post/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ title, text: content }),
-      });
+      let postId = postToEdit?.id;
 
-      if (!postRes.ok) {
-        const data = await postRes.json().catch(() => ({}));
-        throw new Error(data.error || 'Ошибка при создании новости');
+      // 1. Создание или обновление текста
+      if (isEditMode) {
+        setStatusText('Сохранение изменений...');
+        const editRes = await fetch(`/post/edit/${postId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title, content }),
+        });
+        if (!editRes.ok) {
+          const data = await editRes.json().catch(() => ({}));
+          throw new Error(data.error || 'Ошибка при редактировании новости');
+        }
+      } else {
+        setStatusText('Публикация записи...');
+        const createRes = await fetch('/post/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title, content }),
+        });
+        if (!createRes.ok) {
+          const data = await createRes.json().catch(() => ({}));
+          throw new Error(data.error || 'Ошибка при создании новости');
+        }
+        const createData = await createRes.json();
+        postId = (createData.post || createData).id;
       }
 
-      const postData = await postRes.json();
-      const createdPost = postData.post || postData;
-      const postId = createdPost.id;
+      // 2. Открепление удаленных фотографий
+      if (isEditMode && photosToRemove.length > 0) {
+        setStatusText('Удаление открепленных фотографий...');
+        for (const photoId of photosToRemove) {
+          await fetch(`/post/detach?post_id=${postId}&photo_id=${photoId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+        }
+      }
 
-      // Шаг 2: Последовательная загрузка фотографий
+      // 3. Загрузка новых файлов на сервер
       const uploadedPhotoIds = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        setStatusText(`Загрузка фото ${i + 1} из ${selectedFiles.length}...`);
-        
+      for (let i = 0; i < newFiles.length; i++) {
+        setStatusText(`Загрузка новых фото (${i + 1}/${newFiles.length})...`);
         const formData = new FormData();
-        formData.append('file', selectedFiles[i]);
+        formData.append('file', newFiles[i]);
 
         const uploadRes = await fetch('/photo/upload', {
           method: 'POST',
@@ -217,9 +223,9 @@ function CreatePostModal({ onClose }) {
         uploadedPhotoIds.push(uploadData.photo_id);
       }
 
-      // Шаг 3: Привязка фото к созданной новости
+      // 4. Привязка новых фото к посту
       if (uploadedPhotoIds.length > 0) {
-        setStatusText('Привязка фотографий к новости...');
+        setStatusText('Привязка новых фотографий...');
         const attachRes = await fetch(`/post/${postId}/photos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -233,7 +239,6 @@ function CreatePostModal({ onClose }) {
         }
       }
 
-      // Шаг 4: Перезагрузка страницы
       setStatusText('Успешно! Обновление страницы...');
       window.location.reload();
 
@@ -244,11 +249,14 @@ function CreatePostModal({ onClose }) {
     }
   };
 
+  const activeExistingPhotosCount = existingPhotos.length - photosToRemove.length;
+  const canAddMore = activeExistingPhotosCount + newFiles.length < 5;
+
   return (
     <div className="modal-overlay">
       <div className="create-post-modal">
         <div className="modal-header">
-          <h2>Создание новости</h2>
+          <h2>{isEditMode ? 'Редактирование новости' : 'Создание новости'}</h2>
           <button 
             type="button" 
             className="modal-close-btn" 
@@ -286,31 +294,66 @@ function CreatePostModal({ onClose }) {
             />
           </div>
 
+          {/* Превью прикрепленных фотографий */}
           <div className="form-group">
-            <label>Фотографии (макс. 5):</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              disabled={isSubmitting || selectedFiles.length >= 5}
-            />
-
-            {selectedFiles.length > 0 && (
-              <div className="file-preview-list">
-                {selectedFiles.map((file, idx) => (
-                  <div key={idx} className="file-preview-item">
-                    <span>{file.name}</span>
-                    <button
-                      type="button"
-                      className="btn-remove-file"
-                      onClick={() => handleRemoveFile(idx)}
-                      disabled={isSubmitting}
-                    >
-                      ✕
-                    </button>
+            <label>Прикрепленные фотографии (макс. 5):</label>
+            
+            <div className="photos-preview-grid">
+              {/* Старые фото */}
+              {existingPhotos.map((photo) => {
+                const isMarkedForRemoval = photosToRemove.includes(photo.id);
+                return (
+                  <div key={`existing-${photo.id}`} className={`photo-preview-card ${isMarkedForRemoval ? 'marked-remove' : ''}`}>
+                    <img src={photo.url} alt="Прикрепленное фото" className="preview-img" />
+                    {isMarkedForRemoval ? (
+                      <button
+                        type="button"
+                        className="btn-restore-photo"
+                        onClick={() => handleRestoreExistingPhoto(photo.id)}
+                        disabled={isSubmitting}
+                      >
+                        ↩ Восстановить
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-delete-photo"
+                        onClick={() => handleRemoveExistingPhoto(photo.id)}
+                        disabled={isSubmitting}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                ))}
+                );
+              })}
+
+              {/* Новые фото */}
+              {newPreviews.map((url, idx) => (
+                <div key={`new-${idx}`} className="photo-preview-card">
+                  <img src={url} alt="Новое фото" className="preview-img" />
+                  <span className="badge-new">Новое</span>
+                  <button
+                    type="button"
+                    className="btn-delete-photo"
+                    onClick={() => handleRemoveNewFile(idx)}
+                    disabled={isSubmitting}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {canAddMore && (
+              <div className="file-input-wrapper">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileChange}
+                  disabled={isSubmitting}
+                />
               </div>
             )}
           </div>
@@ -323,7 +366,7 @@ function CreatePostModal({ onClose }) {
               className="btn btn-primary"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Публикация...' : 'Опубликовать'}
+              {isSubmitting ? 'Сохранение...' : isEditMode ? 'Сохранить изменения' : 'Опубликовать'}
             </button>
           </div>
         </form>
@@ -332,6 +375,106 @@ function CreatePostModal({ onClose }) {
   );
 }
 
+// Компонент карточки одного поста
+function PostCard({ post, currentUser, onEdit, onImageClick }) {
+  const authorId = post.author_id || post.user_id || post.author;
+  
+  const isAuthor = currentUser && currentUser.id === authorId;
+  const isAdmin = currentUser && (currentUser.is_admin || currentUser.role === 'admin');
+
+  const handleDelete = async () => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот пост?')) return;
+
+    try {
+      const res = await fetch(`/post/delete/${post.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Ошибка при удалении поста');
+      }
+
+      window.location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  return (
+    <article className="post-card">
+      <div className="post-card-header">
+        <div className="post-author">
+          {post.username || post.author_name ? (
+            <span>by {post.username || post.author_name}</span>
+          ) : (
+            <AuthorName userId={authorId} />
+          )}
+        </div>
+
+        <div className="post-actions">
+          {isAuthor && (
+            <button 
+              className="btn-icon btn-edit" 
+              onClick={() => onEdit(post)}
+              title="Редактировать пост"
+            >
+              ✏️ Редактировать
+            </button>
+          )}
+
+          {(isAuthor || isAdmin) && (
+            <button 
+              className="btn-icon btn-delete" 
+              onClick={handleDelete}
+              title="Удалить пост"
+            >
+              🗑️ Удалить
+            </button>
+          )}
+        </div>
+      </div>
+
+      <h2 className="post-title">{post.title}</h2>
+      <p className="post-text">{post.content}</p>
+
+      <PostPhotos 
+        postId={post.id} 
+        onImageClick={(url) => onImageClick(url)} 
+      />
+    </article>
+  );
+}
+
+// Заголовок страницы / Хедер
+function Header({ user, setUser }) {
+  const handleLogout = () => {
+    fetch('/auth/api/logout', { method: 'POST', credentials: 'include' })
+      .then(() => setUser(null))
+      .catch(() => {});
+  };
+
+  return (
+    <header className="header">
+      <div className="header-container">
+        <h1 className="logo">Лента Новостей</h1>
+        <div className="user-nav">
+          {user ? (
+            <>
+              <span className="user-greeting">Привет, <strong>{user.username}</strong></span>
+              <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Выйти</button>
+            </>
+          ) : (
+            <a href="/auth" className="btn btn-primary btn-sm">Войти</a>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// Главный компонент App
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -341,7 +484,8 @@ export default function App() {
   const [error, setError] = useState(null);
   
   const [activePhotoUrl, setActivePhotoUrl] = useState(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [postToEdit, setPostToEdit] = useState(null);
 
   useEffect(() => {
     fetch('/auth/api/me', { credentials: 'include' })
@@ -398,8 +542,14 @@ export default function App() {
     if (!currentUser) {
       window.location.href = '/auth';
     } else {
-      setIsCreateModalOpen(true);
+      setPostToEdit(null);
+      setIsModalOpen(true);
     }
+  };
+
+  const handleEditPost = (post) => {
+    setPostToEdit(post);
+    setIsModalOpen(true);
   };
 
   const PaginationControls = () => (
@@ -451,29 +601,15 @@ export default function App() {
               {posts.length === 0 ? (
                 <div className="no-posts">Постов пока нет.</div>
               ) : (
-                posts.map((post) => {
-                  const authorId = post.author_id || post.user_id || post.author;
-
-                  return (
-                    <article key={post.id} className="post-card">
-                      <div className="post-author">
-                        {post.username || post.author_name ? (
-                          <span>by {post.username || post.author_name}</span>
-                        ) : (
-                          <AuthorName userId={authorId} />
-                        )}
-                      </div>
-
-                      <h2 className="post-title">{post.title}</h2>
-                      <p className="post-text">{post.content}</p>
-                      
-                      <PostPhotos 
-                        postId={post.id} 
-                        onImageClick={(url) => setActivePhotoUrl(url)} 
-                      />
-                    </article>
-                  );
-                })
+                posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    currentUser={currentUser}
+                    onEdit={handleEditPost}
+                    onImageClick={(url) => setActivePhotoUrl(url)}
+                  />
+                ))
               )}
             </div>
           )}
@@ -491,9 +627,13 @@ export default function App() {
         />
       )}
 
-      {isCreateModalOpen && (
-        <CreatePostModal 
-          onClose={() => setIsCreateModalOpen(false)} 
+      {isModalOpen && (
+        <PostFormModal 
+          postToEdit={postToEdit}
+          onClose={() => {
+            setIsModalOpen(false);
+            setPostToEdit(null);
+          }} 
         />
       )}
     </div>

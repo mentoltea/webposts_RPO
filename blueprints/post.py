@@ -3,7 +3,9 @@ from datetime import timedelta
 from flask import Blueprint, jsonify, request, session, send_from_directory
 from database import SessionLocal, init_db, new_session
 from config import FLASK_SECRET_KEY, BASE_DIR, FRONTEND_DIR
-from models import User, Post, Photo
+from models import User, Post, Photo, delete_photo_if_orphan
+from sqlalchemy import text
+from s3 import s3
 
 post_bp = Blueprint('post_bp', __name__, url_prefix='/post')
 
@@ -65,27 +67,38 @@ def get_post_from_user(id: int):
 
 
 @post_bp.route("/delete/<int:id>", methods=['DELETE', 'POST'])
-def delete_post_by_id(id: int):
-    """Удаление поста. Разрешено только автору или администратору"""
-    uid = session.get("user_id")
-    if not uid:
-        return jsonify({"error": "Unauthorized"}), 401
+def delete_post(post_id):
+    current_user_id = session.get('user_id')
+    is_admin = session.get('is_admin', False)
+
+    if not current_user_id:
+        return jsonify({'error': 'Пользователь не авторизован'}), 401
 
     with new_session() as db:
-        post = db.get(Post, id)
+        post = db.query(Post).filter(Post.id == post_id).first()
         if not post:
-            return jsonify({"error": "Post not found"}), 404
+            return jsonify({'error': 'Пост не найден'}), 404
 
-        caller = db.get(User, uid)
-        is_admin = getattr(caller, "is_admin", False) if caller else False
-        is_author = (post.author_id == uid)
+        if post.author_id != current_user_id and not is_admin:
+            return jsonify({'error': 'Недостаточно прав для удаления'}), 403
 
-        if not (is_author or is_admin):
-            return jsonify({"error": "Forbidden: Insufficient privileges"}), 403
+        attached_photos = list(post.photos)
 
         db.delete(post)
+        db.flush()
+
+        for photo in attached_photos:
+            if len(photo.posts) == 0:
+                try:
+                    s3.delete_file(photo.s3_key)
+                except Exception as e:
+                    print(f"Ошибка при удалении файла {photo.s3_key} из S3: {e}")
+
+                db.delete(photo)
+
         db.commit()
-        return jsonify({"message": f"Post {id} deleted successfully"}), 200
+
+    return jsonify({'message': 'Пост и прикрепленные ресурсы успешно удалены'}), 200
 
 
 @post_bp.route("/attach", methods=['PUT', 'POST'])
@@ -120,38 +133,46 @@ def attach_existing_photo_to_post():
 
 
 @post_bp.route("/detach", methods=['PUT', 'POST', 'DELETE'])
-def detach_photo_from_post():
-    """Открепление фото от поста: /post/detach?post_id=1&photo_id=2"""
-    uid = session.get("user_id")
-    if not uid:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    post_id = request.args.get("post_id", type=int)
-    photo_id = request.args.get("photo_id", type=int)
+def detach_photo():
+    post_id = request.args.get('post_id', type=int)
+    photo_id = request.args.get('photo_id', type=int)
 
     if not post_id or not photo_id:
-        return jsonify({"error": "post_id and photo_id parameters are required"}), 400
+        return jsonify({'error': 'Параметры post_id и photo_id обязательны'}), 400
+
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify({'error': 'Пользователь не авторизован'}), 401
 
     with new_session() as db:
-        post = db.get(Post, post_id)
-        photo = db.get(Photo, photo_id)
+        post = db.query(Post).filter(Post.id == post_id).first()
+        if not post:
+            return jsonify({'error': 'Пост не найден'}), 404
+        
+        if post.author_id != current_user_id:
+            return jsonify({'error': 'Недостаточно прав для редактирования поста'}), 403
 
-        if not post or not photo:
-            return jsonify({"error": "Post or Photo not found"}), 404
+        photo = db.query(Photo).filter(Photo.id == photo_id).first()
+        if not photo or photo not in post.photos:
+            return jsonify({'error': 'Связь между постом и фотографией не найдена'}), 404
 
-        caller = db.get(User, uid)
-        is_admin = getattr(caller, "is_admin", False) if caller else False
-        is_author = (post.author_id == uid)
+        post.photos.remove(photo)
 
-        if not (is_author or is_admin):
-            return jsonify({"error": "Forbidden: Insufficient privileges"}), 403
+        if len(photo.posts) == 0:
+            try:
+                s3.delete_file(photo.s3_key)
+            except Exception as e:
+                print(f"Ошибка при удалении файла {photo.s3_key} из S3: {e}")
 
-        if photo in post.photos:
-            post.photos.remove(photo)
-            db.commit()
-            return jsonify({"message": "Photo detached successfully"}), 200
+            db.delete(photo)
 
-        return jsonify({"error": "Photo is not attached to this post"}), 400
+        db.commit()
+
+    return jsonify({
+        'message': 'Фотография успешно откреплена',
+        'post_id': post_id,
+        'photo_id': photo_id
+    }), 200
 
 
 @post_bp.route("/new", methods=['POST', 'PUT'])
