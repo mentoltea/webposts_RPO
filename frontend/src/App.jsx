@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
 
 // Компонент отображения имени автора
+// Компонент отображения имени автора
 function AuthorName({ userId }) {
-  const [name, setName] = useState(`Пользователь #${userId}`);
+  const [name, setName] = useState('Загрузка...');
 
   useEffect(() => {
-    if (!userId) return;
-    fetch(`/auth/api/user/${userId}`, { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && data.username) setName(data.username);
+    if (!userId) {
+      setName('Неизвестный автор');
+      return;
+    }
+
+    fetch(`/user/id/${userId}`, { credentials: 'include' })
+      .then((res) => {
+        if (!res.ok) throw new Error('Ошибка сети или пользователь не найден');
+        return res.json();
       })
-      .catch(() => {});
+      .then((data) => {
+        // Если никнейм успешно получен из БД
+        if (data && data.username) {
+          setName(data.username);
+        } else {
+          setName(`Пользователь #${userId}`);
+        }
+      })
+      .catch(() => {
+        // Запасной вариант ТОЛЬКО при ошибке запроса
+        setName(`Пользователь #${userId}`);
+      });
   }, [userId]);
 
   return <span>by {name}</span>;
@@ -55,11 +71,85 @@ function PostPhotos({ postId, onImageClick }) {
 
 // Модальное окно просмотра полноразмерной фотографии
 function ImageModal({ src, onClose }) {
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Зум колесиком мыши
+  const handleWheel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const zoomFactor = 0.15;
+    let newScale = e.deltaY < 0 ? scale + zoomFactor : scale - zoomFactor;
+
+    // Ограничения зума: от 1x (исходный) до 5x
+    if (newScale < 1) {
+      newScale = 1;
+      setPosition({ x: 0, y: 0 }); // Сброс позиции при возврате к 1x
+    } else if (newScale > 5) {
+      newScale = 5;
+    }
+
+    setScale(newScale);
+  };
+
+  // Начало перетаскивания (только если картинка приближена)
+  const handleMouseDown = (e) => {
+    if (scale <= 1) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  // Процесс перетаскивания
+  const handleMouseMove = (e) => {
+    if (!isDragging || scale <= 1) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  // Завершение перетаскивания
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Сброс зума при двойном клике
+  const handleDoubleClick = () => {
+    if (scale > 1) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    } else {
+      setScale(2);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="image-modal-content" 
+        onClick={(e) => e.stopPropagation()}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+      >
         <button className="modal-close-btn" onClick={onClose}>✕</button>
-        <img src={src} alt="Увеличенное фото" className="full-size-image" />
+        <img
+          src={src}
+          alt="Увеличенное фото"
+          className="full-size-image"
+          onDoubleClick={handleDoubleClick}
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          }}
+        />
       </div>
     </div>
   );
@@ -378,6 +468,7 @@ function PostFormModal({ postToEdit, onClose }) {
 // Компонент карточки одного поста
 function PostCard({ post, currentUser, onEdit, onImageClick }) {
   const authorId = post.author_id || post.user_id || post.author;
+  const username = post.username || post.author_name;
   
   const isAuthor = currentUser && currentUser.id === authorId;
   const isAdmin = currentUser && (currentUser.is_admin || currentUser.role === 'admin');
@@ -406,8 +497,9 @@ function PostCard({ post, currentUser, onEdit, onImageClick }) {
     <article className="post-card">
       <div className="post-card-header">
         <div className="post-author">
-          {post.username || post.author_name ? (
-            <span>by {post.username || post.author_name}</span>
+          {/* Если сервер сразу отдает username внутри объекта поста, используем его, иначе делаем запрос в AuthorName */}
+          {username ? (
+            <span>by {username}</span>
           ) : (
             <AuthorName userId={authorId} />
           )}
